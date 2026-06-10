@@ -193,6 +193,8 @@ async function blockLicense(licenseKey) {
 }
 
 async function unblockLicense(licenseKey) {
+    if (!confirm(`Tem certeza que deseja desbloquear a licença ${licenseKey}?`)) return;
+    
     showLoading(true);
     const result = await apiRequest(`/api/admin/licenses/${licenseKey}/unblock`, 'PUT');
     showLoading(false);
@@ -220,7 +222,7 @@ async function deleteLicense(licenseKey) {
     }
 }
 
-// ==================== PLANOS ====================
+// ==================== PLANOS (COM STRIPE) ====================
 
 async function loadPlans() {
     showLoading(true);
@@ -236,6 +238,8 @@ async function loadPlans() {
                     <td>${plan.type}</td>
                     <td>${plan.validity_days ? plan.validity_days + ' dias' : 'Ilimitado'}</td>
                     <td>R$ ${plan.price.toFixed(2)}</td>
+                    <td><code style="font-size: 11px;">${plan.stripe_price_id || '-'}</code></td>
+                    <td><code style="font-size: 11px;">${plan.stripe_product_id || '-'}</code></td>
                     <td>${plan.is_active ? '✅ Ativo' : '❌ Inativo'}</td>
                     <td>
                         <button class="btn btn-warning btn-sm" onclick="editPlan(${plan.id})">Editar</button>
@@ -254,6 +258,8 @@ function showCreatePlanModal() {
     document.getElementById('plan-type').value = '';
     document.getElementById('plan-validity-days').value = '';
     document.getElementById('plan-price').value = '';
+    document.getElementById('plan-stripe-price-id').value = '';
+    document.getElementById('plan-stripe-product-id').value = '';
     document.getElementById('plan-modal').style.display = 'flex';
 }
 
@@ -271,6 +277,8 @@ async function editPlan(planId) {
             document.getElementById('plan-type').value = plan.type;
             document.getElementById('plan-validity-days').value = plan.validity_days || '';
             document.getElementById('plan-price').value = plan.price;
+            document.getElementById('plan-stripe-price-id').value = plan.stripe_price_id || '';
+            document.getElementById('plan-stripe-product-id').value = plan.stripe_product_id || '';
             document.getElementById('plan-modal').style.display = 'flex';
         }
     }
@@ -282,8 +290,16 @@ async function savePlan() {
         name: document.getElementById('plan-name').value,
         type: document.getElementById('plan-type').value,
         validity_days: document.getElementById('plan-validity-days').value ? parseInt(document.getElementById('plan-validity-days').value) : null,
-        price: parseFloat(document.getElementById('plan-price').value)
+        price: parseFloat(document.getElementById('plan-price').value),
+        stripe_price_id: document.getElementById('plan-stripe-price-id').value || null,
+        stripe_product_id: document.getElementById('plan-stripe-product-id').value || null
     };
+    
+    // Validação básica
+    if (!data.name || !data.type || isNaN(data.price)) {
+        showAlert('Preencha todos os campos obrigatórios', 'error');
+        return;
+    }
     
     showLoading(true);
     let result;
