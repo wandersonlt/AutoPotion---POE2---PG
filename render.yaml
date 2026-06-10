@@ -1,13 +1,11 @@
-services:
+﻿services:
   - type: web
     name: autopotion-license-api
     runtime: python
     repo: https://github.com/wandersonlt/AutoPotion---POE2---PG
     plan: free
     branch: main
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
@@ -25,7 +23,7 @@ services:
       - key: ADMIN_USERNAME
         value: admin
       - key: ADMIN_PASSWORD
-        value: Admin@AutoPotion2024
+        sync: false
 
 databases:
   - name: autopotion-db
