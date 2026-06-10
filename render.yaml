@@ -1,8 +1,7 @@
-﻿services:
+services:
   - type: web
     name: autopotion-license-api
     runtime: python
-    repo: https://github.com/wandersonlt/AutoPotion---POE2---PG
     plan: free
     branch: main
     buildCommand: pip install -r requirements.txt
