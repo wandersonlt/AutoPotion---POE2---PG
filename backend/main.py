@@ -5,6 +5,12 @@ import logging
 from datetime import datetime
 import os
 
+# Adicione NO INÍCIO do arquivo (com os outros imports)
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from starlette.requests import Request
+
 # Importações relativas
 from .database import engine, get_db, Base
 from .auth import AuthHandler
@@ -50,6 +56,10 @@ updater_service = UpdaterService()
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 app.include_router(user_router, prefix="/api/user", tags=["user"])
 
+# Configurar templates e arquivos estáticos
+templates = Jinja2Templates(directory="admin_panel/templates")
+app.mount("/static", StaticFiles(directory="admin_panel/static"), name="static")
+
 # Public endpoints
 @app.get("/")
 async def root():
@@ -71,6 +81,46 @@ async def verify_license(license_key: str, machine_id: str, db=Depends(get_db)):
 async def check_update(current_version: str):
     """Check for application updates"""
     return await updater_service.check_update(current_version)
+
+# Rota para página inicial (redireciona para admin)
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    return """
+    <html>
+        <head><title>License Manager API</title></head>
+        <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+            <h1>License Manager API</h1>
+            <p>API está rodando normalmente.</p>
+            <p>Acesse <a href="/admin/login">/admin/login</a> para o painel administrativo.</p>
+            <p>Acesse <a href="/docs">/docs</a> para a documentação da API.</p>
+        </body>
+    </html>
+    """
+
+# Rota para login do admin
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+# Rota para dashboard do admin
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+# Rota para gerenciamento de licenças
+@app.get("/admin/licenses", response_class=HTMLResponse)
+async def admin_licenses_page(request: Request):
+    return templates.TemplateResponse("licenses.html", {"request": request})
+
+# Rota para gerenciamento de planos
+@app.get("/admin/plans", response_class=HTMLResponse)
+async def admin_plans_page(request: Request):
+    return templates.TemplateResponse("plans.html", {"request": request})
+
+# Rota para página base (template)
+@app.get("/admin/base", response_class=HTMLResponse)
+async def admin_base_page(request: Request):
+    return templates.TemplateResponse("base.html", {"request": request})
 
 if __name__ == "__main__":
     import uvicorn

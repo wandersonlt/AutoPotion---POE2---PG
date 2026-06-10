@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>📊 Admin Dashboard</h1>
+        <div class="user-info">
+            <span>Bem-vindo, Admin</span>
+            <button class="logout-btn" onclick="adminLogout()">Sair</button>
+        </div>
+    </div>
+    
+    <div class="nav-menu">
+        <a href="/admin/dashboard" class="active">Dashboard</a>
+        <a href="/admin/licenses">Licenças</a>
+        <a href="/admin/plans">Planos</a>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3 id="total-users">0</h3>
+            <p>Total de Usuários</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="total-licenses">0</h3>
+            <p>Total de Licenças</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="active-licenses">0</h3>
+            <p>Licenças Ativas</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="expired-licenses">0</h3>
+            <p>Licenças Expiradas</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="blocked-licenses">0</h3>
+            <p>Licenças Bloqueadas</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="revenue">R$ 0,00</h3>
+            <p>Receita (últimos 30 dias)</p>
+        </div>
+    </div>
+    
+    <div class="table-container">
+        <h3>📋 Atividade Recente</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Ação</th>
+                    <th>Detalhes</th>
+                    <th>Usuário</th>
+                </tr>
+            </thead>
+            <tbody id="recent-activity">
+                <tr><td colspan="4">Carregando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

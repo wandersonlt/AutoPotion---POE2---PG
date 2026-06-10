@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Licenças{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>🔑 Gerenciar Licenças</h1>
+        <div class="user-info">
+            <span>Bem-vindo, Admin</span>
+            <button class="logout-btn" onclick="adminLogout()">Sair</button>
+        </div>
+    </div>
+    
+    <div class="nav-menu">
+        <a href="/admin/dashboard">Dashboard</a>
+        <a href="/admin/licenses" class="active">Licenças</a>
+        <a href="/admin/plans">Planos</a>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <button class="btn btn-primary" onclick="createLicense()">➕ Nova Licença</button>
+    </div>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Chave</th>
+                    <th>Usuário</th>
+                    <th>Plano</th>
+                    <th>Status</th>
+                    <th>Machine ID</th>
+                    <th>Criada em</th>
+                    <th>Expira em</th>
+                    <th>Dias Rest.</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="licenses-table-body">
+                <tr><td colspan="9">Carregando...</td></tr>
+            </tbody>
+        </table>
+        <div id="license-page-info" style="margin-top: 20px; text-align: center;"></div>
+    </div>
+</div>
+{% endblock %}

@@ -14,7 +14,7 @@ ctk.set_default_color_theme("blue")
 
 class LicenseApp:
     def __init__(self):
-        self.api_url = os.getenv("API_URL", "http://localhost:8000")
+        self.api_url = "https://autopotion-license-api.onrender.com"
         self.version = "1.0.0"
         self.license_key = None
         self.machine_id = self.get_machine_id()
@@ -64,7 +64,7 @@ class LicenseApp:
                 else:
                     return False, data.get("message", "Invalid license")
             else:
-                return False, "API error"
+                return False, f"API error: {response.status_code}"
         except Exception as e:
             return False, f"Connection error: {str(e)}"
     
