@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, and_
 from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
 
-# Imports relativos corrigidos
+# IMPORTS CORRETOS - usando . para relativo
 from .database import get_db
 from .models import User, License, Plan, AuditLog, LicenseStatus, PlanType
 from .auth import AuthHandler

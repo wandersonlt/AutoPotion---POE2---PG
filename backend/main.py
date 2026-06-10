@@ -1,14 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import logging
 from datetime import datetime
 import os
 
-# Corrigir imports - usar caminho relativo
+# Importações relativas
 from .database import engine, get_db, Base
-from .models import User, License, Plan
 from .auth import AuthHandler
 from .license_service import LicenseService
 from .stripe_service import StripeService
@@ -16,17 +14,16 @@ from .updater_service import UpdaterService
 from .admin_routes import router as admin_router
 from .user_routes import router as user_router
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create tables
+# CORREÇÃO: Função lifespan síncrona para criar tabelas
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables created")
+    # Startup - criar tabelas de forma síncrona
+    logger.info("Creating database tables...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created successfully!")
     yield
     # Shutdown
     logger.info("Shutting down...")
@@ -43,11 +40,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security
-security = HTTPBearer()
+# Initialize services
 auth_handler = AuthHandler()
-
-# Services
 license_service = LicenseService()
 stripe_service = StripeService()
 updater_service = UpdaterService()
