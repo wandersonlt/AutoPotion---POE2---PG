@@ -63,6 +63,45 @@
         .status-active { color: #28a745; }
         .status-expired { color: #dc3545; }
         .status-blocked { color: #ffc107; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .plan-option {
+            background: rgba(0,212,255,0.2);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .plan-option:hover {
+            background: #00d4ff;
+            color: #1a1a2e;
+            transform: scale(1.02);
+        }
+        .modal-close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
@@ -76,7 +115,7 @@
             <a href="/admin/licenses" class="active">Licenças</a>
             <a href="/admin/plans">Planos</a>
         </div>
-        <button class="btn" onclick="createLicense()">➕ Nova Licença</button>
+        <button class="btn" onclick="showLicenseModal()">➕ Nova Licença</button>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
@@ -86,6 +125,15 @@
                     <tr><td colspan="8">Carregando...</td></tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Modal para escolher o plano -->
+    <div id="license-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeLicenseModal()">&times;</span>
+            <h2>Escolha o Plano</h2>
+            <div id="plans-list"></div>
         </div>
     </div>
 
@@ -122,7 +170,7 @@
                         <td>${l.user || '-'}</td>
                         <td>${l.plan || '-'}</td>
                         <td class="${statusClass}">${l.status}</td>
-                        <td>${l.machine_id === 'Not assigned' ? '⚠️ Não ativada' : (l.machine_id ? l.machine_id.substring(0,20)+'...' : '-')}</td>
+                        <td>${l.machine_id === 'Not assigned' ? '⚠️ Aguardando ativação' : (l.machine_id ? l.machine_id.substring(0,20)+'...' : '-')}</td>
                         <td>${new Date(l.created_at).toLocaleDateString()}</td>
                         <td>${l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'Lifetime'}</td>
                         <td>
@@ -134,22 +182,39 @@
             }
         }
 
-        async function createLicense() {
-            const planId = prompt('Digite o ID do plano:\n1=Free\n2=1 Dia\n3=7 Dias\n4=1 Mês');
-            if (!planId) return;
-            const userId = prompt('Digite o ID do usuário (1 para admin):', '1');
-            if (!userId) return;
+        async function showLicenseModal() {
+            // Carregar planos disponíveis
+            const plans = await apiRequest('/api/admin/plans');
+            const plansList = document.getElementById('plans-list');
+            
+            if (plans && Array.isArray(plans)) {
+                plansList.innerHTML = plans.map(p => `
+                    <div class="plan-option" onclick="createLicense(${p.id}, '${p.name}')">
+                        <strong>${p.name}</strong><br>
+                        ${p.validity_days ? p.validity_days + ' dias de validade' : 'Vitalício'} - R$ ${p.price.toFixed(2)}
+                    </div>
+                `).join('');
+            }
+            
+            document.getElementById('license-modal').style.display = 'flex';
+        }
+
+        async function createLicense(planId, planName) {
+            closeLicenseModal();
+            
+            // Usar sempre o usuário admin (ID 1) para criar a licença
+            const userId = 1;
             
             const result = await apiRequest('/api/admin/licenses', 'POST', { 
-                user_id: parseInt(userId), 
-                plan_id: parseInt(planId) 
+                user_id: userId, 
+                plan_id: planId 
             });
             
             if (result && result.success) {
-                alert(`Licença criada com sucesso!\nChave: ${result.license.key}`);
+                alert(`✅ Licença criada com sucesso!\n\nPlano: ${planName}\nChave: ${result.license.key}\n\n⚠️ O usuário ativará a licença em seu computador.`);
                 loadLicenses();
             } else {
-                alert('Erro ao criar licença');
+                alert('❌ Erro ao criar licença');
             }
         }
 
@@ -163,6 +228,10 @@
             if (!confirm('Excluir esta licença? Esta ação não pode ser desfeita.')) return;
             await apiRequest(`/api/admin/licenses/${key}`, 'DELETE');
             loadLicenses();
+        }
+
+        function closeLicenseModal() {
+            document.getElementById('license-modal').style.display = 'none';
         }
 
         function adminLogout() {
