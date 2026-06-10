@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Usar pbkdf2_sha256 em vez de bcrypt (mais compatível)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 class AuthHandler:
     security = HTTPBearer()
@@ -19,9 +20,11 @@ class AuthHandler:
         self.algorithm = os.getenv("JWT_ALGORITHM", "HS256")
     
     def get_password_hash(self, password: str) -> str:
+        """Hash password using pbkdf2_sha256 (no bcrypt issues)"""
         return pwd_context.hash(password)
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """Verify password against hash"""
         return pwd_context.verify(plain_password, hashed_password)
     
     def encode_token(self, user_id: int, role: str) -> str:
