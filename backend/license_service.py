@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import secrets
 import string
 from typing import Dict, Any
-import pytz
 
 from .models import License, LicenseStatus, Plan, User, AuditLog
 
@@ -19,9 +18,13 @@ class LicenseService:
         return '-'.join(parts)
     
     @staticmethod
-    def get_current_time():
-        """Retorna datetime UTC atual sem timezone"""
-        return datetime.utcnow()
+    def _ensure_naive(dt):
+        """Remove timezone de uma data se existir"""
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.replace(tzinfo=None)
+        return dt
     
     @staticmethod
     async def verify_license(license_key: str, machine_id: str, db: Session) -> Dict[str, Any]:
@@ -36,21 +39,15 @@ class LicenseService:
         if license.status == LicenseStatus.SUSPENDED:
             return {"valid": False, "message": "License is suspended"}
         
-        # Verificar expiraÁ„o - CORRE«√O: converter para naive datetime se necess·rio
+        # Verificar expira√ß√£o - CORRE√á√ÉO: remover timezone para compara√ß√£o
         current_time = datetime.utcnow()
+        expires_naive = LicenseService._ensure_naive(license.expires_at)
         
-        if license.expires_at:
-            # Se expires_at tiver timezone, remover o timezone para comparaÁ„o
-            if license.expires_at.tzinfo:
-                expires_naive = license.expires_at.replace(tzinfo=None)
-            else:
-                expires_naive = license.expires_at
-            
-            if expires_naive < current_time:
-                if license.plan.type != "LIFETIME":
-                    license.status = LicenseStatus.EXPIRED
-                    db.commit()
-                    return {"valid": False, "message": "License has expired"}
+        if expires_naive and expires_naive < current_time:
+            if license.plan.type != "LIFETIME":
+                license.status = LicenseStatus.EXPIRED
+                db.commit()
+                return {"valid": False, "message": "License has expired"}
         
         if not license.machine_id:
             license.machine_id = machine_id
@@ -63,11 +60,7 @@ class LicenseService:
             db.commit()
         
         remaining_days = None
-        if license.expires_at and license.plan.type != "LIFETIME":
-            if license.expires_at.tzinfo:
-                expires_naive = license.expires_at.replace(tzinfo=None)
-            else:
-                expires_naive = license.expires_at
+        if expires_naive and license.plan.type != "LIFETIME":
             remaining = expires_naive - current_time
             remaining_days = remaining.days
         

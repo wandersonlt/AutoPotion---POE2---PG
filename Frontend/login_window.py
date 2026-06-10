@@ -1,6 +1,4 @@
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import messagebox
+﻿import customtkinter as ctk
 import requests
 import json
 import os
@@ -12,26 +10,22 @@ class LoginWindow:
         self.version = version
         self.result = None
         
-        # Create window
         self.window = ctk.CTk()
         self.window.title("License Manager - Login")
-        self.window.geometry("500x600")
+        self.window.geometry("500x500")
         self.window.resizable(False, False)
         
-        # Center window
         self.window.update_idletasks()
         x = (self.window.winfo_screenwidth() // 2) - (500 // 2)
-        y = (self.window.winfo_screenheight() // 2) - (600 // 2)
-        self.window.geometry(f"500x600+{x}+{y}")
+        y = (self.window.winfo_screenheight() // 2) - (500 // 2)
+        self.window.geometry(f"500x500+{x}+{y}")
         
         self.setup_ui()
     
     def setup_ui(self):
-        # Main frame
         main_frame = ctk.CTkFrame(self.window, fg_color="transparent")
         main_frame.pack(expand=True, fill="both", padx=40, pady=40)
         
-        # Logo/Title
         title_label = ctk.CTkLabel(
             main_frame,
             text="License Manager",
@@ -46,7 +40,6 @@ class LoginWindow:
         )
         subtitle_label.pack(pady=(0, 30))
         
-        # License entry
         license_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         license_frame.pack(fill="x", pady=10)
         
@@ -65,7 +58,6 @@ class LoginWindow:
         )
         self.license_entry.pack(fill="x")
         
-        # Machine ID display
         machine_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         machine_frame.pack(fill="x", pady=(20, 10))
         
@@ -78,13 +70,12 @@ class LoginWindow:
         
         machine_id_label = ctk.CTkLabel(
             machine_frame,
-            text=self.machine_id[:20] + "...",
+            text=self.machine_id[:30] + "...",
             font=ctk.CTkFont(size=11),
             text_color="gray"
         )
         machine_id_label.pack(anchor="w")
         
-        # Buttons
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         buttons_frame.pack(fill="x", pady=30)
         
@@ -97,18 +88,6 @@ class LoginWindow:
         )
         self.activate_button.pack(fill="x", pady=5)
         
-        buy_button = ctk.CTkButton(
-            buttons_frame,
-            text="Buy License",
-            height=45,
-            font=ctk.CTkFont(size=14),
-            fg_color="transparent",
-            border_width=2,
-            command=self.open_buy_page
-        )
-        buy_button.pack(fill="x", pady=5)
-        
-        # Status label
         self.status_label = ctk.CTkLabel(
             main_frame,
             text="",
@@ -117,7 +96,6 @@ class LoginWindow:
         )
         self.status_label.pack(pady=20)
         
-        # Version
         version_label = ctk.CTkLabel(
             main_frame,
             text=f"Version {self.version}",
@@ -133,26 +111,24 @@ class LoginWindow:
             self.status_label.configure(text="Please enter a license key", text_color="red")
             return
         
-        # Disable button during verification
         self.activate_button.configure(state="disabled", text="Verifying...")
         self.status_label.configure(text="Verifying license...", text_color="orange")
         
         try:
             response = requests.post(
                 f"{self.api_url}/api/verify-license",
-                json={"license_key": license_key, "machine_id": self.machine_id},
+                params={"license_key": license_key, "machine_id": self.machine_id},
                 timeout=15
             )
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get("valid"):
-                    # Save license
                     with open("license.json", "w") as f:
                         json.dump({"license_key": license_key}, f)
                     
                     self.status_label.configure(text="License activated successfully!", text_color="green")
-                    self.window.after(1000, self.close_window)
+                    self.window.after(1500, self.close_window)
                     self.result = license_key
                 else:
                     self.status_label.configure(
@@ -160,15 +136,11 @@ class LoginWindow:
                         text_color="red"
                     )
             else:
-                self.status_label.configure(text="Server error. Please try again.", text_color="red")
+                self.status_label.configure(text=f"Server error: {response.status_code}", text_color="red")
         except requests.exceptions.RequestException as e:
             self.status_label.configure(text=f"Connection error: {str(e)}", text_color="red")
         finally:
             self.activate_button.configure(state="normal", text="Activate License")
-    
-    def open_buy_page(self):
-        import webbrowser
-        webbrowser.open(f"{self.api_url}/buy")
     
     def close_window(self):
         self.window.quit()
