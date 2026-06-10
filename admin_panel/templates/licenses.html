@@ -60,6 +60,9 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        .status-active { color: #28a745; }
+        .status-expired { color: #dc3545; }
+        .status-blocked { color: #ffc107; }
     </style>
 </head>
 <body>
@@ -80,11 +83,12 @@
                     <tr><th>Chave</th><th>Usuário</th><th>Plano</th><th>Status</th><th>Machine ID</th><th>Criada</th><th>Expira</th><th>Ações</th></tr>
                 </thead>
                 <tbody id="licenses-table">
-                    <tr><td colspan="8">Carregando......</td></tr>
+                    <tr><td colspan="8">Carregando...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
+
     <script>
         const API_URL = window.location.origin;
         let token = localStorage.getItem('admin_token');
@@ -106,31 +110,47 @@
             const data = await apiRequest('/api/admin/licenses?skip=0&limit=100');
             const tbody = document.getElementById('licenses-table');
             if (data && data.licenses) {
-                tbody.innerHTML = data.licenses.map(l => `
+                tbody.innerHTML = data.licenses.map(l => {
+                    let statusClass = '';
+                    if (l.status === 'ACTIVE') statusClass = 'status-active';
+                    else if (l.status === 'EXPIRED') statusClass = 'status-expired';
+                    else if (l.status === 'BLOCKED') statusClass = 'status-blocked';
+                    
+                    return `
                     <tr>
                         <td><code>${l.key}</code></td>
                         <td>${l.user || '-'}</td>
                         <td>${l.plan || '-'}</td>
-                        <td>${l.status}</td>
-                        <td>${l.machine_id ? l.machine_id.substring(0,15)+'...' : '-'}</td>
+                        <td class="${statusClass}">${l.status}</td>
+                        <td>${l.machine_id === 'Not assigned' ? '⚠️ Não ativada' : (l.machine_id ? l.machine_id.substring(0,20)+'...' : '-')}</td>
                         <td>${new Date(l.created_at).toLocaleDateString()}</td>
                         <td>${l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'Lifetime'}</td>
-                        <td><button onclick="blockLicense('${l.key}')">Bloquear</button>
-                        <button onclick="deleteLicense('${l.key}')">Excluir</button></td>
+                        <td>
+                            <button onclick="blockLicense('${l.key}')">Bloquear</button>
+                            <button onclick="deleteLicense('${l.key}')">Excluir</button>
+                        </td>
                     </tr>
-                `).join('');
+                `}).join('');
             }
         }
 
         async function createLicense() {
-            const planId = prompt('Digite o ID do plano (1=Free, 2=1 Dia, 3=7 Dias, 4=1 Mês):');
+            const planId = prompt('Digite o ID do plano:\n1=Free\n2=1 Dia\n3=7 Dias\n4=1 Mês');
             if (!planId) return;
             const userId = prompt('Digite o ID do usuário (1 para admin):', '1');
             if (!userId) return;
             
-            await apiRequest('/api/admin/licenses', 'POST', { user_id: parseInt(userId), plan_id: parseInt(planId) });
-            alert('Licença criada com sucesso!');
-            loadLicenses();
+            const result = await apiRequest('/api/admin/licenses', 'POST', { 
+                user_id: parseInt(userId), 
+                plan_id: parseInt(planId) 
+            });
+            
+            if (result && result.success) {
+                alert(`Licença criada com sucesso!\nChave: ${result.license.key}`);
+                loadLicenses();
+            } else {
+                alert('Erro ao criar licença');
+            }
         }
 
         async function blockLicense(key) {
@@ -140,7 +160,7 @@
         }
 
         async function deleteLicense(key) {
-            if (!confirm('Excluir esta licença?')) return;
+            if (!confirm('Excluir esta licença? Esta ação não pode ser desfeita.')) return;
             await apiRequest(`/api/admin/licenses/${key}`, 'DELETE');
             loadLicenses();
         }

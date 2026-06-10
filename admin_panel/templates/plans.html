@@ -49,6 +49,7 @@
             margin-bottom: 20px;
             font-weight: bold;
         }
+        .btn-danger { background: #dc3545; color: white; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
         th { background: rgba(0,212,255,0.2); color: #00d4ff; }
@@ -60,12 +61,47 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 5px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+        }
+        .modal-close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💰 Planos Disponíveis</h1>
+            <h1>💰 Gerenciar Planos</h1>
             <button class="logout-btn" onclick="adminLogout()">Sair</button>
         </div>
         <div class="nav-menu">
@@ -73,27 +109,50 @@
             <a href="/admin/licenses">Licenças</a>
             <a href="/admin/plans" class="active">Planos</a>
         </div>
-        <button class="btn" onclick="location.href='/admin/plans/create'">➕ Novo Plano</button>
+        <button class="btn" onclick="showCreateModal()">➕ Novo Plano</button>
         <div style="overflow-x: auto;">
             <table>
                 <thead>
-                    <tr><th>Nome</th><th>Validade</th><th>Preço</th><th>Stripe Price ID</th><th>Stripe Product ID</th></tr>
+                    <tr><th>ID</th><th>Nome</th><th>Dias</th><th>Preço</th><th>Ações</th></tr>
                 </thead>
                 <tbody id="plans-table">
-                    <tr><td colspan="5">Carregando......</td></tr>
+                    <tr><td colspan="5">Carregando...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
+
+    <div id="plan-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">Criar Plano</h2>
+            <input type="hidden" id="plan-id">
+            <div class="form-group">
+                <label>Nome do Plano</label>
+                <input type="text" id="plan-name" placeholder="Ex: Plano Mensal">
+            </div>
+            <div class="form-group">
+                <label>Dias de Validade</label>
+                <input type="number" id="plan-days" placeholder="30">
+                <small>Deixe em branco para ilimitado</small>
+            </div>
+            <div class="form-group">
+                <label>Preço (R$)</label>
+                <input type="number" step="0.01" id="plan-price" placeholder="29.90">
+            </div>
+            <button class="btn" onclick="savePlan()" style="width:100%">Salvar</button>
+        </div>
+    </div>
+
     <script>
         const API_URL = window.location.origin;
         let token = localStorage.getItem('admin_token');
         if (!token) window.location.href = '/admin/login';
 
-        async function apiRequest(endpoint) {
-            const response = await fetch(`${API_URL}${endpoint}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            const options = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
             if (response.status === 401) {
                 localStorage.removeItem('admin_token');
                 window.location.href = '/admin/login';
@@ -108,14 +167,67 @@
             if (data && Array.isArray(data)) {
                 tbody.innerHTML = data.map(p => `
                     <tr>
+                        <td>${p.id}</td>
                         <td><strong>${p.name}</strong></td>
                         <td>${p.validity_days ? p.validity_days + ' dias' : 'Ilimitado'}</td>
                         <td>R$ ${p.price.toFixed(2)}</td>
-                        <td><code>${p.stripe_price_id || '-'}</code></td>
-                        <td><code>${p.stripe_product_id || '-'}</code></td>
+                        <td>
+                            <button class="btn-danger" style="padding:5px 10px" onclick="deletePlan(${p.id})">Excluir</button>
+                        </td>
                     </tr>
                 `).join('');
             }
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = 'Criar Plano';
+            document.getElementById('plan-id').value = '';
+            document.getElementById('plan-name').value = '';
+            document.getElementById('plan-days').value = '';
+            document.getElementById('plan-price').value = '';
+            document.getElementById('plan-modal').style.display = 'flex';
+        }
+
+        async function savePlan() {
+            const id = document.getElementById('plan-id').value;
+            const data = {
+                name: document.getElementById('plan-name').value,
+                validity_days: document.getElementById('plan-days').value ? parseInt(document.getElementById('plan-days').value) : null,
+                price: parseFloat(document.getElementById('plan-price').value)
+            };
+            
+            if (!data.name || isNaN(data.price)) {
+                alert('Preencha nome e preço corretamente');
+                return;
+            }
+            
+            let result;
+            if (id) {
+                result = await apiRequest(`/api/admin/plans/${id}`, 'PUT', data);
+            } else {
+                result = await apiRequest('/api/admin/plans', 'POST', data);
+            }
+            
+            if (result && result.success) {
+                alert('Plano salvo com sucesso!');
+                closeModal();
+                loadPlans();
+            } else {
+                alert('Erro ao salvar plano');
+            }
+        }
+
+        async function deletePlan(id) {
+            if (!confirm('Excluir este plano?')) return;
+            const result = await apiRequest(`/api/admin/plans/${id}`, 'DELETE');
+            if (result && result.success) {
+                alert('Plano excluído!');
+                loadPlans();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('plan-modal').style.display = 'none';
         }
 
         function adminLogout() {
@@ -124,6 +236,11 @@
         }
 
         loadPlans();
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('plan-modal');
+            if (event.target === modal) closeModal();
+        }
     </script>
 </body>
 </html>

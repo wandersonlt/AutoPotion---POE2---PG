@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+﻿from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import secrets
 import string
@@ -18,15 +18,6 @@ class LicenseService:
         return '-'.join(parts)
     
     @staticmethod
-    def _ensure_naive(dt):
-        """Remove timezone de uma data se existir"""
-        if dt is None:
-            return None
-        if dt.tzinfo is not None:
-            return dt.replace(tzinfo=None)
-        return dt
-    
-    @staticmethod
     async def verify_license(license_key: str, machine_id: str, db: Session) -> Dict[str, Any]:
         license = db.query(License).filter(License.key == license_key).first()
         
@@ -36,42 +27,26 @@ class LicenseService:
         if license.status == LicenseStatus.BLOCKED:
             return {"valid": False, "message": "License is blocked"}
         
-        if license.status == LicenseStatus.SUSPENDED:
-            return {"valid": False, "message": "License is suspended"}
-        
-        # Verificar expiração - CORREÇÃO: remover timezone para comparação
-        current_time = datetime.utcnow()
-        expires_naive = LicenseService._ensure_naive(license.expires_at)
-        
-        if expires_naive and expires_naive < current_time:
-            if license.plan.type != "LIFETIME":
+        if license.expires_at and license.expires_at.replace(tzinfo=None) < datetime.utcnow():
+            if license.plan.validity_days is not None:
                 license.status = LicenseStatus.EXPIRED
                 db.commit()
                 return {"valid": False, "message": "License has expired"}
         
         if not license.machine_id:
             license.machine_id = machine_id
-            license.last_access = current_time
+            license.last_access = datetime.utcnow()
             db.commit()
         elif license.machine_id != machine_id:
             return {"valid": False, "message": "License already activated on another machine"}
         else:
-            license.last_access = current_time
+            license.last_access = datetime.utcnow()
             db.commit()
         
         remaining_days = None
-        if expires_naive and license.plan.type != "LIFETIME":
-            remaining = expires_naive - current_time
+        if license.expires_at:
+            remaining = license.expires_at.replace(tzinfo=None) - datetime.utcnow()
             remaining_days = remaining.days
-        
-        audit_log = AuditLog(
-            user_id=license.user_id,
-            license_id=license.id,
-            action="ACCESS",
-            details="License accessed"
-        )
-        db.add(audit_log)
-        db.commit()
         
         return {
             "valid": True,
@@ -81,15 +56,15 @@ class LicenseService:
                 "plan": license.plan.name,
                 "expires_at": license.expires_at.isoformat() if license.expires_at else None,
                 "remaining_days": remaining_days,
-                "status": license.status.value
+                "status": license.status
             }
         }
     
     @staticmethod
-    async def create_license(user_id: int, plan_type: str, db: Session):
-        plan = db.query(Plan).filter(Plan.type == plan_type).first()
+    async def create_license(user_id: int, plan_id: int, db: Session):
+        plan = db.query(Plan).filter(Plan.id == plan_id).first()
         if not plan:
-            raise ValueError(f"Plan {plan_type} not found")
+            raise ValueError(f"Plan {plan_id} not found")
         
         expires_at = None
         if plan.validity_days:
@@ -100,7 +75,7 @@ class LicenseService:
         license = License(
             key=license_key,
             user_id=user_id,
-            plan_id=plan.id,
+            plan_id=plan_id,
             expires_at=expires_at,
             status=LicenseStatus.ACTIVE
         )
@@ -109,55 +84,4 @@ class LicenseService:
         db.commit()
         db.refresh(license)
         
-        audit_log = AuditLog(
-            user_id=user_id,
-            license_id=license.id,
-            action="CREATE",
-            details=f"License created for plan {plan.name}"
-        )
-        db.add(audit_log)
-        db.commit()
-        
-        return license
-    
-    @staticmethod
-    async def renew_license(license_id: int, db: Session):
-        license = db.query(License).filter(License.id == license_id).first()
-        if not license:
-            raise ValueError("License not found")
-        
-        if license.plan.validity_days:
-            if license.expires_at and license.expires_at > datetime.utcnow():
-                license.expires_at = license.expires_at + timedelta(days=license.plan.validity_days)
-            else:
-                license.expires_at = datetime.utcnow() + timedelta(days=license.plan.validity_days)
-        
-        license.status = LicenseStatus.ACTIVE
-        db.commit()
-        
-        audit_log = AuditLog(
-            user_id=license.user_id,
-            license_id=license.id,
-            action="RENEW",
-            details="License renewed"
-        )
-        db.add(audit_log)
-        db.commit()
-        
-        return license
-    
-    @staticmethod
-    async def block_license(license_id: int, db: Session):
-        license = db.query(License).filter(License.id == license_id).first()
-        if license:
-            license.status = LicenseStatus.BLOCKED
-            db.commit()
-        return license
-    
-    @staticmethod
-    async def unblock_license(license_id: int, db: Session):
-        license = db.query(License).filter(License.id == license_id).first()
-        if license:
-            license.status = LicenseStatus.ACTIVE
-            db.commit()
         return license
