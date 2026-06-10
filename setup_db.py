@@ -1,7 +1,7 @@
 ﻿import os
 import logging
 from backend.database import engine, Base, SessionLocal
-from backend.models import User, Plan, PlanType
+from backend.models import User, Plan
 from backend.auth import AuthHandler
 
 logging.basicConfig(level=logging.INFO)
@@ -16,42 +16,38 @@ def init_database():
     db = SessionLocal()
     
     try:
-        admin_username = os.getenv("ADMIN_USERNAME", "admin")
-        admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
-        
-        admin = db.query(User).filter(User.username == admin_username).first()
+        # Criar admin
+        admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
-            logger.info("👨‍💼 Criando usuário administrador...")
+            logger.info("👨‍💼 Criando usuario administrador...")
             auth = AuthHandler()
             admin = User(
-                username=admin_username,
+                username="admin",
                 email="admin@autopotion.com",
-                password_hash=auth.get_password_hash(admin_password),
+                password_hash=auth.get_password_hash("admin123"),
                 role="ADMIN",
                 is_active=True
             )
             db.add(admin)
             db.commit()
-            logger.info(f"✅ Admin criado! Usuário: {admin_username}")
+            logger.info("✅ Admin criado! Usuario: admin / senha: admin123")
         else:
-            logger.info("✅ Admin já existe")
+            logger.info("✅ Admin ja existe")
         
-        plans_data = [
-            {"name": "Free", "type": PlanType.FREE, "validity_days": None, "price": 0.0},
-            {"name": "1 Day", "type": PlanType.ONE_DAY, "validity_days": 1, "price": 0.50},
-            {"name": "30 Days", "type": PlanType.THIRTY_DAYS, "validity_days": 30, "price": 29.90},
-            {"name": "90 Days", "type": PlanType.NINETY_DAYS, "validity_days": 90, "price": 79.90},
-            {"name": "180 Days", "type": PlanType.ONE_EIGHTY_DAYS, "validity_days": 180, "price": 149.90},
-            {"name": "365 Days", "type": PlanType.THREE_SIXTY_FIVE_DAYS, "validity_days": 365, "price": 299.90},
-            {"name": "Lifetime", "type": PlanType.LIFETIME, "validity_days": None, "price": 499.90},
+        # Remover planos antigos e criar novos
+        db.query(Plan).delete()
+        
+        plans = [
+            {"name": "Free", "validity_days": None, "price": 0.00},
+            {"name": "1 Dia", "validity_days": 1, "price": 0.50},
+            {"name": "7 Dias", "validity_days": 7, "price": 2.90},
+            {"name": "1 Mes", "validity_days": 30, "price": 9.90},
         ]
         
-        for plan_data in plans_data:
-            existing_plan = db.query(Plan).filter(Plan.type == plan_data["type"]).first()
-            if not existing_plan:
-                logger.info(f"📦 Criando plano: {plan_data['name']}")
-                plan = Plan(**plan_data)
-                db.add(plan)
+        for plan_data in plans:
+            plan = Plan(**plan_data, is_active=True)
+            db.add(plan)
+            logger.info(f"📦 Plano criado: {plan_data['name']} - R$ {plan_data['price']:.2f}")
         
         db.commit()
         logger.info("✅ Planos criados com sucesso!")
@@ -63,7 +59,7 @@ def init_database():
     finally:
         db.close()
     
-    logger.info("🎉 Setup do banco de dados concluído!")
+    logger.info("🎉 Setup do banco de dados concluido!")
 
 if __name__ == "__main__":
     init_database()

@@ -1,28 +1,8 @@
-﻿from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, ForeignKey, Enum
+﻿from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
-import enum
 from .database import Base
-
-class PlanType(str, enum.Enum):
-    FREE = "FREE"
-    ONE_DAY = "ONE_DAY"
-    THIRTY_DAYS = "30_DAYS"
-    NINETY_DAYS = "90_DAYS"
-    ONE_EIGHTY_DAYS = "180_DAYS"
-    THREE_SIXTY_FIVE_DAYS = "365_DAYS"
-    LIFETIME = "LIFETIME"
-
-class LicenseStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    EXPIRED = "EXPIRED"
-    BLOCKED = "BLOCKED"
-    SUSPENDED = "SUSPENDED"
-
-class UserRole(str, enum.Enum):
-    ADMIN = "ADMIN"
-    USER = "USER"
 
 class User(Base):
     __tablename__ = "users"
@@ -31,7 +11,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.USER)
+    role = Column(String(20), default="USER")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True))
@@ -44,11 +24,10 @@ class Plan(Base):
     
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
-    type = Column(Enum(PlanType), unique=True, nullable=False)
     validity_days = Column(Integer)
     price = Column(Float)
-    stripe_product_id = Column(String(100))
     stripe_price_id = Column(String(100))
+    stripe_product_id = Column(String(100))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
@@ -62,7 +41,7 @@ class License(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
     machine_id = Column(String(255))
-    status = Column(Enum(LicenseStatus), default=LicenseStatus.ACTIVE)
+    status = Column(String(20), default="ACTIVE")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True))
     last_access = Column(DateTime(timezone=True))
