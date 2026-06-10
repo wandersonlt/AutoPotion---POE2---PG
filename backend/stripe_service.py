@@ -2,8 +2,8 @@ import stripe
 import os
 from sqlalchemy.orm import Session
 from datetime import datetime
-from models import Plan, User, License
-from license_service import LicenseService
+from .models import Plan, User, License
+from .license_service import LicenseService
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -73,7 +73,7 @@ class StripeService:
                 username = f"{base_username}{counter}"
                 counter += 1
             
-            from auth import AuthHandler
+            from .auth import AuthHandler
             auth = AuthHandler()
             user = User(
                 username=username,

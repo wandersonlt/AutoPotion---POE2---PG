@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 import secrets
 import string
 from typing import Dict, Any
-from models import License, LicenseStatus, Plan, User, AuditLog
-from dateutil import parser
+
+# Imports relativos corrigidos
+from .models import License, LicenseStatus, Plan, User, AuditLog
 
 class LicenseService:
     
@@ -42,14 +43,12 @@ class LicenseService:
         
         # Check machine ID
         if not license.machine_id:
-            # First activation
             license.machine_id = machine_id
             license.last_access = datetime.utcnow()
             db.commit()
         elif license.machine_id != machine_id:
             return {"valid": False, "message": "License already activated on another machine"}
         else:
-            # Update last access
             license.last_access = datetime.utcnow()
             db.commit()
         
@@ -82,13 +81,12 @@ class LicenseService:
         }
     
     @staticmethod
-    async def create_license(user_id: int, plan_type: str, db: Session) -> License:
+    async def create_license(user_id: int, plan_type: str, db: Session):
         """Create a new license"""
         plan = db.query(Plan).filter(Plan.type == plan_type).first()
         if not plan:
             raise ValueError(f"Plan {plan_type} not found")
         
-        # Calculate expiration date
         expires_at = None
         if plan.validity_days:
             expires_at = datetime.utcnow() + timedelta(days=plan.validity_days)
@@ -107,7 +105,6 @@ class LicenseService:
         db.commit()
         db.refresh(license)
         
-        # Log creation
         audit_log = AuditLog(
             user_id=user_id,
             license_id=license.id,
@@ -117,51 +114,4 @@ class LicenseService:
         db.add(audit_log)
         db.commit()
         
-        return license
-    
-    @staticmethod
-    async def renew_license(license_id: int, db: Session) -> License:
-        """Renew an existing license"""
-        license = db.query(License).filter(License.id == license_id).first()
-        if not license:
-            raise ValueError("License not found")
-        
-        # Extend expiration by plan validity days
-        if license.plan.validity_days:
-            if license.expires_at and license.expires_at > datetime.utcnow():
-                license.expires_at = license.expires_at + timedelta(days=license.plan.validity_days)
-            else:
-                license.expires_at = datetime.utcnow() + timedelta(days=license.plan.validity_days)
-        
-        license.status = LicenseStatus.ACTIVE
-        db.commit()
-        
-        # Log renewal
-        audit_log = AuditLog(
-            user_id=license.user_id,
-            license_id=license.id,
-            action="RENEW",
-            details="License renewed"
-        )
-        db.add(audit_log)
-        db.commit()
-        
-        return license
-    
-    @staticmethod
-    async def block_license(license_id: int, db: Session) -> License:
-        """Block a license"""
-        license = db.query(License).filter(License.id == license_id).first()
-        if license:
-            license.status = LicenseStatus.BLOCKED
-            db.commit()
-        return license
-    
-    @staticmethod
-    async def unblock_license(license_id: int, db: Session) -> License:
-        """Unblock a license"""
-        license = db.query(License).filter(License.id == license_id).first()
-        if license:
-            license.status = LicenseStatus.ACTIVE
-            db.commit()
         return license

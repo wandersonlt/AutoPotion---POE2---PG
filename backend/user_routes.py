@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import List
 from pydantic import BaseModel
 
-from database import get_db
-from models import User, License, AuditLog
-from auth import AuthHandler
-from license_service import LicenseService
+from .database import get_db
+from .models import User, License, AuditLog
+from .auth import AuthHandler
+from .license_service import LicenseService
 
 router = APIRouter()
 auth_handler = AuthHandler()

@@ -5,10 +5,11 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
 
-from database import get_db
-from models import User, License, Plan, AuditLog, LicenseStatus, PlanType
-from auth import AuthHandler
-from license_service import LicenseService
+# No início do admin_routes.py e user_routes.py
+from .database import get_db
+from .models import User, License, Plan, AuditLog, LicenseStatus
+from .auth import AuthHandler
+from .license_service import LicenseService
 
 router = APIRouter()
 auth_handler = AuthHandler()
