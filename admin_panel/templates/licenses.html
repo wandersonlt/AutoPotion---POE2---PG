@@ -35,7 +35,10 @@
             padding: 10px 20px;
             border-radius: 5px;
         }
-        .nav-menu a:hover { background: #00d4ff; color: #1a1a2e; }
+        .nav-menu a:hover, .nav-menu a.active {
+            background: #00d4ff;
+            color: #1a1a2e;
+        }
         .btn {
             background: #00d4ff;
             color: #1a1a2e;
@@ -44,6 +47,7 @@
             border-radius: 5px;
             cursor: pointer;
             margin-bottom: 20px;
+            font-weight: bold;
         }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -56,7 +60,6 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        button.small { padding: 5px 10px; margin: 0 2px; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -73,27 +76,36 @@
         <button class="btn" onclick="createLicense()">➕ Nova Licença</button>
         <div style="overflow-x: auto;">
             <table>
-                <thead><tr><th>Chave</th><th>Usuário</th><th>Plano</th><th>Status</th><th>Machine ID</th><th>Criada</th><th>Expira</th><th>Ações</th></tr></thead>
-                <tbody id="licenses-table"><tr><td colspan="8">Carregando...</td></tr></tbody>
+                <thead>
+                    <tr><th>Chave</th><th>Usuário</th><th>Plano</th><th>Status</th><th>Machine ID</th><th>Criada</th><th>Expira</th><th>Ações</th></tr>
+                </thead>
+                <tbody id="licenses-table">
+                    <tr><td colspan="8">Carregando......</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
     <script>
         const API_URL = window.location.origin;
-        const token = localStorage.getItem('admin_token');
+        let token = localStorage.getItem('admin_token');
         if (!token) window.location.href = '/admin/login';
 
         async function apiRequest(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
             if (data) options.body = JSON.stringify(data);
             const response = await fetch(`${API_URL}${endpoint}`, options);
+            if (response.status === 401) {
+                localStorage.removeItem('admin_token');
+                window.location.href = '/admin/login';
+                return null;
+            }
             return response.json();
         }
 
         async function loadLicenses() {
             const data = await apiRequest('/api/admin/licenses?skip=0&limit=100');
             const tbody = document.getElementById('licenses-table');
-            if (data.licenses) {
+            if (data && data.licenses) {
                 tbody.innerHTML = data.licenses.map(l => `
                     <tr>
                         <td><code>${l.key}</code></td>
@@ -103,20 +115,21 @@
                         <td>${l.machine_id ? l.machine_id.substring(0,15)+'...' : '-'}</td>
                         <td>${new Date(l.created_at).toLocaleDateString()}</td>
                         <td>${l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'Lifetime'}</td>
-                        <td><button class="small" onclick="blockLicense('${l.key}')">Bloquear</button>
-                        <button class="small" onclick="deleteLicense('${l.key}')">Excluir</button></td>
+                        <td><button onclick="blockLicense('${l.key}')">Bloquear</button>
+                        <button onclick="deleteLicense('${l.key}')">Excluir</button></td>
                     </tr>
                 `).join('');
             }
         }
 
         async function createLicense() {
-            const planType = prompt('Plano (FREE, THIRTY_DAYS, NINETY_DAYS, ONE_EIGHTY_DAYS, THREE_SIXTY_FIVE_DAYS, LIFETIME):');
-            if (!planType) return;
-            const userId = prompt('ID do usuário:', '1');
+            const planId = prompt('Digite o ID do plano (1=Free, 2=1 Dia, 3=7 Dias, 4=1 Mês):');
+            if (!planId) return;
+            const userId = prompt('Digite o ID do usuário (1 para admin):', '1');
             if (!userId) return;
-            await apiRequest('/api/admin/licenses', 'POST', { user_id: parseInt(userId), plan_type: planType.toUpperCase() });
-            alert('Licença criada!');
+            
+            await apiRequest('/api/admin/licenses', 'POST', { user_id: parseInt(userId), plan_id: parseInt(planId) });
+            alert('Licença criada com sucesso!');
             loadLicenses();
         }
 
