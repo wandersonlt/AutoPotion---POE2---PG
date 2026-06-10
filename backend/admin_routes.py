@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
 
-# No início do admin_routes.py e user_routes.py
+# Imports relativos corrigidos
 from .database import get_db
-from .models import User, License, Plan, AuditLog, LicenseStatus
+from .models import User, License, Plan, AuditLog, LicenseStatus, PlanType
 from .auth import AuthHandler
 from .license_service import LicenseService
 
