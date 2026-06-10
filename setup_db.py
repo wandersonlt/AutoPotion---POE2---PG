@@ -1,5 +1,4 @@
-import os
-import sys
+﻿import os
 import logging
 from backend.database import engine, Base, SessionLocal
 from backend.models import User, Plan, PlanType
@@ -11,15 +10,12 @@ logger = logging.getLogger(__name__)
 def init_database():
     logger.info("🔧 Iniciando setup do banco de dados...")
     
-    # Criar tabelas
-    logger.info("📊 Criando tabelas...")
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Tabelas criadas com sucesso!")
     
     db = SessionLocal()
     
     try:
-        # Criar usuário admin
         admin_username = os.getenv("ADMIN_USERNAME", "admin")
         admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
         
@@ -37,13 +33,12 @@ def init_database():
             db.add(admin)
             db.commit()
             logger.info(f"✅ Admin criado! Usuário: {admin_username}")
-            logger.info(f"⚠️  SENHA ADMIN: {admin_password} (GUARDE ESTA SENHA!)")
         else:
             logger.info("✅ Admin já existe")
         
-        # Criar planos padrão
         plans_data = [
             {"name": "Free", "type": PlanType.FREE, "validity_days": None, "price": 0.0},
+            {"name": "1 Day", "type": PlanType.ONE_DAY, "validity_days": 1, "price": 0.50},
             {"name": "30 Days", "type": PlanType.THIRTY_DAYS, "validity_days": 30, "price": 29.90},
             {"name": "90 Days", "type": PlanType.NINETY_DAYS, "validity_days": 90, "price": 79.90},
             {"name": "180 Days", "type": PlanType.ONE_EIGHTY_DAYS, "validity_days": 180, "price": 149.90},
@@ -60,12 +55,6 @@ def init_database():
         
         db.commit()
         logger.info("✅ Planos criados com sucesso!")
-        
-        # Listar planos criados
-        plans = db.query(Plan).all()
-        logger.info("📋 Planos disponíveis:")
-        for plan in plans:
-            logger.info(f"   - {plan.name} (R${plan.price:.2f})")
         
     except Exception as e:
         logger.error(f"❌ Erro no setup: {e}")

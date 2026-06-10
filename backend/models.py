@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, ForeignKey, Enum
+﻿from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -7,8 +7,9 @@ from .database import Base
 
 class PlanType(str, enum.Enum):
     FREE = "FREE"
-    THIRTY_DAYS = "30_DAYS"
-    NINETY_DAYS = "90_DAYS"
+    ONE_DAY = "ONE_DAY"
+    THIRTY_DAYS = "THIRTY_DAYS"
+    NINETY_DAYS = "NINETY_DAYS"
     ONE_EIGHTY_DAYS = "180_DAYS"
     THREE_SIXTY_FIVE_DAYS = "365_DAYS"
     LIFETIME = "LIFETIME"
@@ -35,7 +36,6 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True))
     
-    # Relationships
     licenses = relationship("License", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
 
@@ -52,7 +52,6 @@ class Plan(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relationships
     licenses = relationship("License", back_populates="plan")
 
 class License(Base):
@@ -69,7 +68,6 @@ class License(Base):
     last_access = Column(DateTime(timezone=True))
     activation_ip = Column(String(45))
     
-    # Relationships
     user = relationship("User", back_populates="licenses")
     plan = relationship("Plan", back_populates="licenses")
     audit_logs = relationship("AuditLog", back_populates="license")
@@ -85,6 +83,5 @@ class AuditLog(Base):
     ip_address = Column(String(45))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relationships
     user = relationship("User", back_populates="audit_logs")
     license = relationship("License", back_populates="audit_logs")
