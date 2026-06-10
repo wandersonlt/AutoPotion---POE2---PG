@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+﻿from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
 
-# IMPORTS CORRETOS - usando . para relativo
 from .database import get_db
 from .models import User, License, Plan, AuditLog, LicenseStatus, PlanType
 from .auth import AuthHandler
@@ -14,7 +13,12 @@ from .license_service import LicenseService
 router = APIRouter()
 auth_handler = AuthHandler()
 
-# Pydantic models
+# ==================== MODELOS PYDANTIC ====================
+
+class AdminLogin(BaseModel):
+    username: str
+    password: str
+
 class PlanCreate(BaseModel):
     name: str
     type: PlanType
@@ -33,26 +37,52 @@ class LicenseCreate(BaseModel):
     user_id: int
     plan_type: PlanType
 
-# Dashboard endpoints
+# ==================== AUTENTICAÇÃO ====================
+
+@router.post("/login")
+async def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
+    """Login do administrador"""
+    user = db.query(User).filter(User.username == login_data.username).first()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    
+    if not auth_handler.verify_password(login_data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    
+    if user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Acesso negado. Usuário não é administrador.")
+    
+    token = auth_handler.encode_token(user.id, user.role)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role
+        }
+    }
+
+# ==================== DASHBOARD ====================
+
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get dashboard statistics"""
-    
     total_users = db.query(User).count()
     total_licenses = db.query(License).count()
     active_licenses = db.query(License).filter(License.status == LicenseStatus.ACTIVE).count()
     expired_licenses = db.query(License).filter(License.status == LicenseStatus.EXPIRED).count()
     blocked_licenses = db.query(License).filter(License.status == LicenseStatus.BLOCKED).count()
     
-    # Revenue estimation
     revenue = db.query(func.sum(Plan.price)).join(License).filter(
         License.created_at >= datetime.utcnow() - timedelta(days=30)
     ).scalar() or 0
     
-    # Recent activity
     recent_activity = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(10).all()
     
     return {
@@ -73,7 +103,8 @@ async def get_dashboard_stats(
         ]
     }
 
-# License management
+# ==================== LICENÇAS ====================
+
 @router.get("/licenses")
 async def get_licenses(
     skip: int = 0,
@@ -82,12 +113,9 @@ async def get_licenses(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get all licenses"""
     query = db.query(License)
-    
     if status:
         query = query.filter(License.status == status)
-    
     total = query.count()
     licenses = query.offset(skip).limit(limit).all()
     
@@ -117,7 +145,6 @@ async def create_license(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a new license"""
     try:
         license = await LicenseService.create_license(
             license_data.user_id,
@@ -141,7 +168,6 @@ async def renew_license(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Renew a license"""
     try:
         license = await LicenseService.renew_license(license_id, db)
         return {"success": True, "message": "License renewed successfully"}
@@ -154,7 +180,6 @@ async def block_license(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Block a license"""
     license = await LicenseService.block_license(license_id, db)
     return {"success": True, "message": "License blocked"}
 
@@ -164,7 +189,6 @@ async def unblock_license(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Unblock a license"""
     license = await LicenseService.unblock_license(license_id, db)
     return {"success": True, "message": "License unblocked"}
 
@@ -174,7 +198,6 @@ async def delete_license(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Delete a license"""
     license = db.query(License).filter(License.id == license_id).first()
     if license:
         db.delete(license)
@@ -182,13 +205,13 @@ async def delete_license(
         return {"success": True, "message": "License deleted"}
     raise HTTPException(status_code=404, detail="License not found")
 
-# Plan management
+# ==================== PLANOS ====================
+
 @router.get("/plans")
 async def get_plans(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get all plans"""
     plans = db.query(Plan).all()
     return [
         {
@@ -210,7 +233,6 @@ async def create_plan(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a new plan"""
     existing = db.query(Plan).filter(Plan.type == plan_data.type).first()
     if existing:
         raise HTTPException(status_code=400, detail="Plan type already exists")
@@ -219,7 +241,6 @@ async def create_plan(
     db.add(plan)
     db.commit()
     db.refresh(plan)
-    
     return {"success": True, "plan": plan_data.dict()}
 
 @router.put("/plans/{plan_id}")
@@ -229,7 +250,6 @@ async def update_plan(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Update a plan"""
     plan = db.query(Plan).filter(Plan.id == plan_id).first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
@@ -246,7 +266,6 @@ async def delete_plan(
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    """Delete a plan"""
     plan = db.query(Plan).filter(Plan.id == plan_id).first()
     if plan:
         db.delete(plan)
