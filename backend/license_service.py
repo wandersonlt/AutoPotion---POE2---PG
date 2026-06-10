@@ -1,4 +1,4 @@
-Ôªøfrom sqlalchemy.orm import Session
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import secrets
 import string
@@ -36,11 +36,11 @@ class LicenseService:
         if license.status == LicenseStatus.SUSPENDED:
             return {"valid": False, "message": "License is suspended"}
         
-        # Verificar expira√ß√£o - CORRE√á√ÉO: converter para naive datetime se necess√°rio
+        # Verificar expiraÁ„o - CORRE«√O: converter para naive datetime se necess·rio
         current_time = datetime.utcnow()
         
         if license.expires_at:
-            # Se expires_at tiver timezone, remover o timezone para compara√ß√£o
+            # Se expires_at tiver timezone, remover o timezone para comparaÁ„o
             if license.expires_at.tzinfo:
                 expires_naive = license.expires_at.replace(tzinfo=None)
             else:
