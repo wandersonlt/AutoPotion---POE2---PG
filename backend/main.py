@@ -1,19 +1,20 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import logging
 from datetime import datetime
 import os
 
-from database import engine, get_db, Base
-from models import User, License, Plan, AuditLog
-from auth import AuthHandler
-from license_service import LicenseService
-from stripe_service import StripeService
-from updater_service import UpdaterService
-from admin_routes import router as admin_router
-from user_routes import router as user_router
+# Corrigir imports - usar caminho relativo
+from .database import engine, get_db, Base
+from .models import User, License, Plan
+from .auth import AuthHandler
+from .license_service import LicenseService
+from .stripe_service import StripeService
+from .updater_service import UpdaterService
+from .admin_routes import router as admin_router
+from .user_routes import router as user_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created")
     yield
     # Shutdown
@@ -75,13 +77,6 @@ async def verify_license(license_key: str, machine_id: str, db=Depends(get_db)):
 async def check_update(current_version: str):
     """Check for application updates"""
     return await updater_service.check_update(current_version)
-
-@app.post("/api/webhooks/stripe")
-async def stripe_webhook(request: Request, db=Depends(get_db)):
-    """Handle Stripe webhooks"""
-    payload = await request.body()
-    sig_header = request.headers.get('stripe-signature')
-    return await stripe_service.handle_webhook(payload, sig_header, db)
 
 if __name__ == "__main__":
     import uvicorn

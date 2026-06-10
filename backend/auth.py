@@ -6,8 +6,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 from typing import Optional
 from sqlalchemy.orm import Session
-from database import get_db
-from models import User
+from .database import get_db
+from .models import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -16,7 +16,7 @@ class AuthHandler:
     
     def __init__(self):
         self.secret = os.getenv("JWT_SECRET", "your-secret-key-change-this")
-        self.algorithm = "HS256"
+        self.algorithm = os.getenv("JWT_ALGORITHM", "HS256")
     
     def get_password_hash(self, password: str) -> str:
         return pwd_context.hash(password)
