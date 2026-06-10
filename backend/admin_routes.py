@@ -1,6 +1,6 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from datetime import datetime, timedelta
 from typing import List, Optional
 from pydantic import BaseModel
@@ -32,6 +32,8 @@ class PlanUpdate(BaseModel):
     validity_days: Optional[int] = None
     price: Optional[float] = None
     is_active: Optional[bool] = None
+    stripe_product_id: Optional[str] = None
+    stripe_price_id: Optional[str] = None
 
 class LicenseCreate(BaseModel):
     user_id: int
@@ -41,7 +43,6 @@ class LicenseCreate(BaseModel):
 
 @router.post("/login")
 async def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
-    """Login do administrador"""
     user = db.query(User).filter(User.username == login_data.username).first()
     
     if not user:
@@ -162,43 +163,39 @@ async def create_license(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/licenses/{license_id}/renew")
-async def renew_license(
-    license_id: int,
-    admin: User = Depends(auth_handler.require_admin),
-    db: Session = Depends(get_db)
-):
-    try:
-        license = await LicenseService.renew_license(license_id, db)
-        return {"success": True, "message": "License renewed successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.put("/licenses/{license_id}/block")
+@router.put("/licenses/{license_key}/block")
 async def block_license(
-    license_id: int,
+    license_key: str,
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    license = await LicenseService.block_license(license_id, db)
-    return {"success": True, "message": "License blocked"}
+    license = db.query(License).filter(License.key == license_key).first()
+    if license:
+        license.status = LicenseStatus.BLOCKED
+        db.commit()
+        return {"success": True, "message": "License blocked"}
+    raise HTTPException(status_code=404, detail="License not found")
 
-@router.put("/licenses/{license_id}/unblock")
+@router.put("/licenses/{license_key}/unblock")
 async def unblock_license(
-    license_id: int,
+    license_key: str,
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    license = await LicenseService.unblock_license(license_id, db)
-    return {"success": True, "message": "License unblocked"}
+    license = db.query(License).filter(License.key == license_key).first()
+    if license:
+        license.status = LicenseStatus.ACTIVE
+        db.commit()
+        return {"success": True, "message": "License unblocked"}
+    raise HTTPException(status_code=404, detail="License not found")
 
-@router.delete("/licenses/{license_id}")
+@router.delete("/licenses/{license_key}")
 async def delete_license(
-    license_id: int,
+    license_key: str,
     admin: User = Depends(auth_handler.require_admin),
     db: Session = Depends(get_db)
 ):
-    license = db.query(License).filter(License.id == license_id).first()
+    license = db.query(License).filter(License.key == license_key).first()
     if license:
         db.delete(license)
         db.commit()
@@ -237,11 +234,11 @@ async def create_plan(
     if existing:
         raise HTTPException(status_code=400, detail="Plan type already exists")
     
-    plan = Plan(**plan_data.dict())
+    plan = Plan(**plan_data.model_dump())
     db.add(plan)
     db.commit()
     db.refresh(plan)
-    return {"success": True, "plan": plan_data.dict()}
+    return {"success": True, "plan": plan_data.model_dump()}
 
 @router.put("/plans/{plan_id}")
 async def update_plan(
@@ -254,7 +251,8 @@ async def update_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
     
-    for key, value in plan_data.dict(exclude_unset=True).items():
+    update_data = plan_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
         setattr(plan, key, value)
     
     db.commit()
