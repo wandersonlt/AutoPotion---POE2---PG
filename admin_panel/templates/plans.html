@@ -30,12 +30,14 @@
                     <th>Tipo</th>
                     <th>Validade</th>
                     <th>Preço</th>
+                    <th>Stripe Price ID</th>
+                    <th>Stripe Product ID</th>
                     <th>Status</th>
                     <th>Ações</th>
                 </tr>
             </thead>
             <tbody id="plans-table-body">
-                <tr><td colspan="6">Carregando...</td></tr>
+                <tr><td colspan="8">Carregando...</td></tr>
             </tbody>
         </table>
     </div>
@@ -56,12 +58,20 @@
             <input type="text" id="plan-type" placeholder="Ex: THIRTY_DAYS">
         </div>
         <div class="form-group">
-            <label>Dias de Validade (deixe em branco para ilimitado)</label>
+            <label>Dias de Validade</label>
             <input type="number" id="plan-validity-days" placeholder="30">
         </div>
         <div class="form-group">
             <label>Preço (R$)</label>
             <input type="number" step="0.01" id="plan-price" placeholder="29.90">
+        </div>
+        <div class="form-group">
+            <label>Stripe Price ID</label>
+            <input type="text" id="plan-stripe-price-id" placeholder="price_xxxxxxxxxxxxx">
+        </div>
+        <div class="form-group">
+            <label>Stripe Product ID</label>
+            <input type="text" id="plan-stripe-product-id" placeholder="prod_xxxxxxxxxxxxx">
         </div>
         <button class="btn btn-primary" onclick="savePlan()">Salvar</button>
     </div>

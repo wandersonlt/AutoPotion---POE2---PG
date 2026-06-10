@@ -1,47 +1,143 @@
-{% extends "base.html" %}
-
-{% block title %}Gerenciar Licenças{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="header">
-        <h1>🔑 Gerenciar Licenças</h1>
-        <div class="user-info">
-            <span>Bem-vindo, Admin</span>
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Licenças - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { color: #00d4ff; }
+        .nav-menu {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        .nav-menu a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        .nav-menu a:hover { background: #00d4ff; color: #1a1a2e; }
+        .btn {
+            background: #00d4ff;
+            color: #1a1a2e;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button.small { padding: 5px 10px; margin: 0 2px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Gerenciar Licenças</h1>
             <button class="logout-btn" onclick="adminLogout()">Sair</button>
         </div>
+        <div class="nav-menu">
+            <a href="/admin/dashboard">Dashboard</a>
+            <a href="/admin/licenses" class="active">Licenças</a>
+            <a href="/admin/plans">Planos</a>
+        </div>
+        <button class="btn" onclick="createLicense()">➕ Nova Licença</button>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead><tr><th>Chave</th><th>Usuário</th><th>Plano</th><th>Status</th><th>Machine ID</th><th>Criada</th><th>Expira</th><th>Ações</th></tr></thead>
+                <tbody id="licenses-table"><tr><td colspan="8">Carregando...</td></tr></tbody>
+            </table>
+        </div>
     </div>
-    
-    <div class="nav-menu">
-        <a href="/admin/dashboard">Dashboard</a>
-        <a href="/admin/licenses" class="active">Licenças</a>
-        <a href="/admin/plans">Planos</a>
-    </div>
-    
-    <div style="margin-bottom: 20px;">
-        <button class="btn btn-primary" onclick="createLicense()">➕ Nova Licença</button>
-    </div>
-    
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Chave</th>
-                    <th>Usuário</th>
-                    <th>Plano</th>
-                    <th>Status</th>
-                    <th>Machine ID</th>
-                    <th>Criada em</th>
-                    <th>Expira em</th>
-                    <th>Dias Rest.</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody id="licenses-table-body">
-                <tr><td colspan="9">Carregando...</td></tr>
-            </tbody>
-        </table>
-        <div id="license-page-info" style="margin-top: 20px; text-align: center;"></div>
-    </div>
-</div>
-{% endblock %}
+    <script>
+        const API_URL = window.location.origin;
+        const token = localStorage.getItem('admin_token');
+        if (!token) window.location.href = '/admin/login';
+
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            const options = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            return response.json();
+        }
+
+        async function loadLicenses() {
+            const data = await apiRequest('/api/admin/licenses?skip=0&limit=100');
+            const tbody = document.getElementById('licenses-table');
+            if (data.licenses) {
+                tbody.innerHTML = data.licenses.map(l => `
+                    <tr>
+                        <td><code>${l.key}</code></td>
+                        <td>${l.user || '-'}</td>
+                        <td>${l.plan || '-'}</td>
+                        <td>${l.status}</td>
+                        <td>${l.machine_id ? l.machine_id.substring(0,15)+'...' : '-'}</td>
+                        <td>${new Date(l.created_at).toLocaleDateString()}</td>
+                        <td>${l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'Lifetime'}</td>
+                        <td><button class="small" onclick="blockLicense('${l.key}')">Bloquear</button>
+                        <button class="small" onclick="deleteLicense('${l.key}')">Excluir</button></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function createLicense() {
+            const planType = prompt('Plano (FREE, THIRTY_DAYS, NINETY_DAYS, ONE_EIGHTY_DAYS, THREE_SIXTY_FIVE_DAYS, LIFETIME):');
+            if (!planType) return;
+            const userId = prompt('ID do usuário:', '1');
+            if (!userId) return;
+            await apiRequest('/api/admin/licenses', 'POST', { user_id: parseInt(userId), plan_type: planType.toUpperCase() });
+            alert('Licença criada!');
+            loadLicenses();
+        }
+
+        async function blockLicense(key) {
+            if (!confirm('Bloquear esta licença?')) return;
+            await apiRequest(`/api/admin/licenses/${key}/block`, 'PUT');
+            loadLicenses();
+        }
+
+        async function deleteLicense(key) {
+            if (!confirm('Excluir esta licença?')) return;
+            await apiRequest(`/api/admin/licenses/${key}`, 'DELETE');
+            loadLicenses();
+        }
+
+        function adminLogout() {
+            localStorage.removeItem('admin_token');
+            window.location.href = '/admin/login';
+        }
+
+        loadLicenses();
+    </script>
+</body>
+</html>
