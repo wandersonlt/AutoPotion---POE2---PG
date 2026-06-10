@@ -1,0 +1,28 @@
+# Core
+fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+
+# Auth & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Payment
+stripe==7.2.0
+
+# Utilities
+httpx==0.25.1
+pydantic==2.5.0
+email-validator==2.1.0
+python-multipart==0.0.6
+requests==2.31.0
+
+# Frontend (desktop)
+customtkinter==5.2.1
+Pillow==10.1.0
+
+# Windows specific (optional)
+wmi==1.5.1
+pywin32==306
