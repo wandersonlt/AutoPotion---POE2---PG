@@ -10,6 +10,10 @@ from datetime import datetime
 from Frontend.login_window import LoginWindow
 from dashboard import Dashboard
 from updater import check_for_updates
+from .database import engine, get_db, Base
+from .models import User, License, Plan
+from .auth import AuthHandler
+from .license_service import LicenseService
 
 class LicenseApp:
     def __init__(self):
