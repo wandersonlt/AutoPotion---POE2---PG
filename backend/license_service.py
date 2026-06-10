@@ -27,8 +27,9 @@ class LicenseService:
         if license.status == LicenseStatus.BLOCKED:
             return {"valid": False, "message": "License is blocked"}
         
-        if license.expires_at and license.expires_at.replace(tzinfo=None) < datetime.utcnow():
-            if license.plan.validity_days is not None:
+        if license.expires_at:
+            expires_naive = license.expires_at.replace(tzinfo=None) if license.expires_at.tzinfo else license.expires_at
+            if expires_naive < datetime.utcnow():
                 license.status = LicenseStatus.EXPIRED
                 db.commit()
                 return {"valid": False, "message": "License has expired"}
@@ -45,7 +46,8 @@ class LicenseService:
         
         remaining_days = None
         if license.expires_at:
-            remaining = license.expires_at.replace(tzinfo=None) - datetime.utcnow()
+            expires_naive = license.expires_at.replace(tzinfo=None) if license.expires_at.tzinfo else license.expires_at
+            remaining = expires_naive - datetime.utcnow()
             remaining_days = remaining.days
         
         return {

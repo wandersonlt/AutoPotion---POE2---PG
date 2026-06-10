@@ -4,6 +4,17 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from .database import Base
 
+# Constantes para status
+class UserRole:
+    ADMIN = "ADMIN"
+    USER = "USER"
+
+class LicenseStatus:
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    BLOCKED = "BLOCKED"
+    SUSPENDED = "SUSPENDED"
+
 class User(Base):
     __tablename__ = "users"
     
@@ -11,7 +22,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), default="USER")
+    role = Column(String(20), default=UserRole.USER)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True))
@@ -41,7 +52,7 @@ class License(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
     machine_id = Column(String(255))
-    status = Column(String(20), default="ACTIVE")
+    status = Column(String(20), default=LicenseStatus.ACTIVE)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True))
     last_access = Column(DateTime(timezone=True))
