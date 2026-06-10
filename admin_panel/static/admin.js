@@ -1,3 +1,7 @@
+cd C:\Users\Wanderson\Desktop\license-manager
+
+# Baixar a versão corrigida do admin.js
+@'
 // API Base URL
 const API_URL = window.location.origin;
 
@@ -27,7 +31,6 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
         const response = await fetch(`${API_URL}${endpoint}`, options);
         
         if (response.status === 401) {
-            // Token expirado ou inválido
             localStorage.removeItem('admin_token');
             window.location.href = '/admin/login';
             return null;
@@ -42,7 +45,6 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
     }
 }
 
-// Função para mostrar alertas
 function showAlert(message, type = 'info') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type}`;
@@ -52,42 +54,34 @@ function showAlert(message, type = 'info') {
     alertDiv.style.right = '20px';
     alertDiv.style.zIndex = '9999';
     alertDiv.style.maxWidth = '300px';
-    
     document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 3000);
+    setTimeout(() => alertDiv.remove(), 3000);
 }
 
-// Função para mostrar loading
 function showLoading(show) {
-    const loadingDiv = document.getElementById('loading-overlay') || createLoadingOverlay();
+    let loadingDiv = document.getElementById('loading-overlay');
+    if (!loadingDiv) {
+        loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loading-overlay';
+        loadingDiv.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+        loadingDiv.innerHTML = '<div class="spinner"></div><p style="margin-top: 10px;">Carregando...</p>';
+        document.body.appendChild(loadingDiv);
+    }
     loadingDiv.style.display = show ? 'flex' : 'none';
 }
 
-function createLoadingOverlay() {
-    const div = document.createElement('div');
-    div.id = 'loading-overlay';
-    div.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.7);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-    `;
-    div.innerHTML = '<div class="spinner"></div><p style="margin-top: 10px;">Carregando...</p>';
-    document.body.appendChild(div);
-    return div;
-}
-
-// ==================== DASHBOARD ====================
-
+// Dashboard
 async function loadDashboard() {
     showLoading(true);
     const result = await apiRequest('/api/admin/dashboard/stats');
@@ -101,7 +95,6 @@ async function loadDashboard() {
         document.getElementById('blocked-licenses').textContent = result.data.blocked_licenses || 0;
         document.getElementById('revenue').textContent = `R$ ${(result.data.revenue_last_30_days || 0).toFixed(2)}`;
         
-        // Carregar atividade recente
         const activityList = document.getElementById('recent-activity');
         if (activityList && result.data.recent_activity) {
             activityList.innerHTML = result.data.recent_activity.map(activity => `
@@ -116,8 +109,7 @@ async function loadDashboard() {
     }
 }
 
-// ==================== LICENÇAS ====================
-
+// Licenças
 let currentLicensePage = 0;
 const licensePageSize = 50;
 
@@ -147,7 +139,6 @@ async function loadLicenses() {
             `).join('');
         }
         
-        // Atualizar paginação
         const pageInfo = document.getElementById('license-page-info');
         if (pageInfo) {
             pageInfo.textContent = `Mostrando ${result.data.licenses.length} de ${result.data.total} licenças`;
@@ -156,11 +147,11 @@ async function loadLicenses() {
 }
 
 async function createLicense() {
-    const userId = prompt('Digite o ID do usuário:');
-    if (!userId) return;
-    
     const planType = prompt('Digite o tipo do plano (FREE, THIRTY_DAYS, NINETY_DAYS, ONE_EIGHTY_DAYS, THREE_SIXTY_FIVE_DAYS, LIFETIME):');
     if (!planType) return;
+    
+    const userId = prompt('Digite o ID do usuário (1 para admin):', '1');
+    if (!userId) return;
     
     showLoading(true);
     const result = await apiRequest('/api/admin/licenses', 'POST', {
@@ -170,60 +161,36 @@ async function createLicense() {
     showLoading(false);
     
     if (result && result.status === 200) {
-        showAlert(`Licença criada com sucesso! Chave: ${result.data.license.key}`, 'success');
+        showAlert(`Licença criada! Chave: ${result.data.license.key}`, 'success');
         loadLicenses();
     } else {
-        showAlert(`Erro ao criar licença: ${result?.data?.detail || 'Erro desconhecido'}`, 'error');
+        showAlert(`Erro: ${result?.data?.detail || 'Erro desconhecido'}`, 'error');
     }
 }
 
 async function blockLicense(licenseKey) {
-    if (!confirm(`Tem certeza que deseja bloquear a licença ${licenseKey}?`)) return;
-    
+    if (!confirm(`Bloquear licença ${licenseKey}?`)) return;
     showLoading(true);
     const result = await apiRequest(`/api/admin/licenses/${licenseKey}/block`, 'PUT');
     showLoading(false);
-    
     if (result && result.status === 200) {
-        showAlert('Licença bloqueada com sucesso!', 'success');
+        showAlert('Licença bloqueada!', 'success');
         loadLicenses();
-    } else {
-        showAlert('Erro ao bloquear licença', 'error');
-    }
-}
-
-async function unblockLicense(licenseKey) {
-    if (!confirm(`Tem certeza que deseja desbloquear a licença ${licenseKey}?`)) return;
-    
-    showLoading(true);
-    const result = await apiRequest(`/api/admin/licenses/${licenseKey}/unblock`, 'PUT');
-    showLoading(false);
-    
-    if (result && result.status === 200) {
-        showAlert('Licença desbloqueada com sucesso!', 'success');
-        loadLicenses();
-    } else {
-        showAlert('Erro ao desbloquear licença', 'error');
     }
 }
 
 async function deleteLicense(licenseKey) {
-    if (!confirm(`Tem certeza que deseja EXCLUIR a licença ${licenseKey}? Esta ação não pode ser desfeita.`)) return;
-    
+    if (!confirm(`Excluir licença ${licenseKey}?`)) return;
     showLoading(true);
     const result = await apiRequest(`/api/admin/licenses/${licenseKey}`, 'DELETE');
     showLoading(false);
-    
     if (result && result.status === 200) {
-        showAlert('Licença excluída com sucesso!', 'success');
+        showAlert('Licença excluída!', 'success');
         loadLicenses();
-    } else {
-        showAlert('Erro ao excluir licença', 'error');
     }
 }
 
-// ==================== PLANOS (COM STRIPE) ====================
-
+// Planos
 async function loadPlans() {
     showLoading(true);
     const result = await apiRequest('/api/admin/plans');
@@ -238,8 +205,8 @@ async function loadPlans() {
                     <td>${plan.type}</td>
                     <td>${plan.validity_days ? plan.validity_days + ' dias' : 'Ilimitado'}</td>
                     <td>R$ ${plan.price.toFixed(2)}</td>
-                    <td><code style="font-size: 11px;">${plan.stripe_price_id || '-'}</code></td>
-                    <td><code style="font-size: 11px;">${plan.stripe_product_id || '-'}</code></td>
+                    <td><code>${plan.stripe_price_id || '-'}</code></td>
+                    <td><code>${plan.stripe_product_id || '-'}</code></td>
                     <td>${plan.is_active ? '✅ Ativo' : '❌ Inativo'}</td>
                     <td>
                         <button class="btn btn-warning btn-sm" onclick="editPlan(${plan.id})">Editar</button>
@@ -252,6 +219,7 @@ async function loadPlans() {
 }
 
 function showCreatePlanModal() {
+    console.log('Abrindo modal de criação de plano');
     document.getElementById('plan-modal-title').textContent = 'Criar Novo Plano';
     document.getElementById('plan-id').value = '';
     document.getElementById('plan-name').value = '';
@@ -295,7 +263,6 @@ async function savePlan() {
         stripe_product_id: document.getElementById('plan-stripe-product-id').value || null
     };
     
-    // Validação básica
     if (!data.name || !data.type || isNaN(data.price)) {
         showAlert('Preencha todos os campos obrigatórios', 'error');
         return;
@@ -315,22 +282,18 @@ async function savePlan() {
         closePlanModal();
         loadPlans();
     } else {
-        showAlert(`Erro ao salvar plano: ${result?.data?.detail || 'Erro desconhecido'}`, 'error');
+        showAlert(`Erro: ${result?.data?.detail || 'Erro desconhecido'}`, 'error');
     }
 }
 
 async function deletePlan(planId) {
-    if (!confirm('Tem certeza que deseja excluir este plano?')) return;
-    
+    if (!confirm('Excluir este plano?')) return;
     showLoading(true);
     const result = await apiRequest(`/api/admin/plans/${planId}`, 'DELETE');
     showLoading(false);
-    
     if (result && result.status === 200) {
-        showAlert('Plano excluído com sucesso!', 'success');
+        showAlert('Plano excluído!', 'success');
         loadPlans();
-    } else {
-        showAlert('Erro ao excluir plano', 'error');
     }
 }
 
@@ -338,22 +301,17 @@ function closePlanModal() {
     document.getElementById('plan-modal').style.display = 'none';
 }
 
-// ==================== LOGIN ====================
-
+// Login
 async function adminLogin(event) {
     event.preventDefault();
-    
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    
     showLoading(true);
     
     try {
         const response = await fetch(`${API_URL}/api/admin/login`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
         
@@ -363,14 +321,14 @@ async function adminLogin(event) {
         if (response.status === 200 && data.access_token) {
             authToken = data.access_token;
             localStorage.setItem('admin_token', authToken);
-            showAlert('Login realizado com sucesso!', 'success');
+            showAlert('Login realizado!', 'success');
             window.location.href = '/admin/dashboard';
         } else {
             showAlert('Usuário ou senha incorretos', 'error');
         }
     } catch (error) {
         showLoading(false);
-        showAlert('Erro de conexão com o servidor', 'error');
+        showAlert('Erro de conexão', 'error');
     }
 }
 
@@ -379,8 +337,7 @@ function adminLogout() {
     window.location.href = '/admin/login';
 }
 
-// ==================== INICIALIZAÇÃO ====================
-
+// Inicialização
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
@@ -392,13 +349,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loadPlans();
     }
     
-    // Configurar modais
     const modal = document.getElementById('plan-modal');
     if (modal) {
         window.onclick = function(event) {
-            if (event.target === modal) {
-                closePlanModal();
-            }
+            if (event.target === modal) closePlanModal();
         };
     }
 });
+'@ | Out-File -FilePath admin_panel/static/admin.js -Encoding UTF8 -NoNewline
