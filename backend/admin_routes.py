@@ -1,4 +1,4 @@
-Ôªøfrom fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -28,15 +28,15 @@ class LicenseCreate(BaseModel):
     user_id: int
     plan_id: int
 
-# ==================== LOGIN ====================
+# ==================== LOGIN (UPDATED) ====================
 
 @router.post("/login")
 def admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == login_data.username).first()
     if not user:
-        raise HTTPException(status_code=401, detail="Usu√°rio ou senha incorretos")
+        raise HTTPException(status_code=401, detail="Usu·rio ou senha incorretos")
     if not auth_handler.verify_password(login_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Usu√°rio ou senha incorretos")
+        raise HTTPException(status_code=401, detail="Usu·rio ou senha incorretos")
     if user.role != "ADMIN":
         raise HTTPException(status_code=403, detail="Acesso negado")
     
@@ -73,7 +73,7 @@ def get_plans(db: Session = Depends(get_db), current_user: User = Depends(auth_h
 def create_plan(plan_data: PlanCreate, db: Session = Depends(get_db), current_user: User = Depends(auth_handler.require_admin)):
     existing = db.query(Plan).filter(Plan.name == plan_data.name).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Plano j√° existe")
+        raise HTTPException(status_code=400, detail="Plano j· existe")
     
     plan = Plan(**plan_data.dict())
     db.add(plan)
@@ -81,7 +81,7 @@ def create_plan(plan_data: PlanCreate, db: Session = Depends(get_db), current_us
     db.refresh(plan)
     return {"success": True, "plan": {"id": plan.id, "name": plan.name, "validity_days": plan.validity_days, "price": plan.price}}
 
-# ==================== LICEN√áAS ====================
+# ==================== LICEN«AS ====================
 
 @router.get("/licenses")
 def get_licenses(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth_handler.require_admin)):
